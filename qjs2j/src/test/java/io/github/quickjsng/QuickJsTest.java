@@ -66,6 +66,16 @@ public final class QuickJsTest {
         testCompileAndLoad();
         testCompileSyntaxError();
         testGc();
+        testSetTimeout();
+        testSetInterval();
+        testClearTimeout();
+        testDrainJobs();
+        testRunEventLoop();
+        testAwaitPromise();
+        testAwaitPromiseReject();
+        testAwaitPromiseTimeout();
+        testAwaitPromiseNonPromise();
+        testEvalAsync();
         testClose();
         testClosedEngine();
         testMemoryLimit();
@@ -369,6 +379,106 @@ public final class QuickJsTest {
             js.gc();
             check("gc does not throw", true);
             check("after gc, eval still works", "ok".equals(js.eval("'ok'")));
+        }
+    }
+
+    private static void testSetTimeout() {
+        section("setTimeout");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            js.eval("var log = []; setTimeout(() => log.push('a'), 0);");
+            js.runEventLoop(100);
+            check("setTimeout fires", "a".equals(js.eval("log.join('')")));
+        }
+    }
+
+    private static void testSetInterval() {
+        section("setInterval");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            js.eval("var n = 0; var id = setInterval(() => n++, 10);");
+            js.runEventLoop(55);
+            js.eval("clearInterval(id)");
+            int n = Integer.parseInt(js.eval("n.toString()"));
+            check("setInterval fired multiple times", n >= 3 && n <= 8);
+        }
+    }
+
+    private static void testClearTimeout() {
+        section("clearTimeout");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            js.eval("var fired = false; var id = setTimeout(() => fired = true, 10);");
+            js.eval("clearTimeout(id)");
+            js.runEventLoop(50);
+            check("cleared timeout did not fire", "false".equals(js.eval("fired.toString()")));
+        }
+    }
+
+    private static void testDrainJobs() {
+        section("drainJobs");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            js.eval("var x = 0; Promise.resolve().then(() => x = 42)");
+            js.drainJobs();
+            check("drainJobs resolves microtask", "42".equals(js.eval("x.toString()")));
+        }
+    }
+
+    private static void testRunEventLoop() {
+        section("runEventLoop");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            js.eval("var result = ''; setTimeout(() => result = 'done', 50)");
+            js.runEventLoop(200);
+            check("runEventLoop processes timer", "done".equals(js.eval("result")));
+        }
+    }
+
+    private static void testAwaitPromise() {
+        section("awaitPromise");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            String r = js.awaitPromise("Promise.resolve(42).then(v => String(v))", 1000);
+            check("awaitPromise resolves", "42".equals(r));
+        }
+    }
+
+    private static void testAwaitPromiseReject() {
+        section("awaitPromise reject");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            checkThrows("rejected promise throws QuickJsException",
+                    () -> js.awaitPromise("Promise.reject('err')", 1000),
+                    QuickJsException.class);
+        }
+    }
+
+    private static void testAwaitPromiseTimeout() {
+        section("awaitPromise timeout");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            checkThrows("timeout throws QuickJsException",
+                    () -> js.awaitPromise("new Promise(() => {})", 100),
+                    QuickJsException.class);
+        }
+    }
+
+    private static void testAwaitPromiseNonPromise() {
+        section("awaitPromise non-promise");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            String r = js.awaitPromise("42", 1000);
+            check("non-promise returns value", "42".equals(r));
+        }
+    }
+
+    private static void testEvalAsync() {
+        section("evalAsync");
+        try (QuickJs js = new QuickJs()) {
+            js.setConsoleLog(msg -> {});
+            String r = js.evalAsync("await Promise.resolve('hello')");
+            check("evalAsync resolves", "hello".equals(r));
         }
     }
 

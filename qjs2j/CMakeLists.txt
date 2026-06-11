@@ -6,6 +6,10 @@ set(QUICKJS_ROOT "${CMAKE_CURRENT_LIST_DIR}/../quickjs" CACHE PATH "Path to the 
 
 add_library(quickjs_jni SHARED
     src/main/c/quickjs_jni.c
+    src/main/c/qjs_util.c
+    src/main/c/qjs_console.c
+    src/main/c/qjs_timer.c
+    src/main/c/qjs_callback.c
     "${QUICKJS_ROOT}/dtoa.c"
     "${QUICKJS_ROOT}/libregexp.c"
     "${QUICKJS_ROOT}/libunicode.c"
@@ -14,7 +18,7 @@ add_library(quickjs_jni SHARED
 
 target_compile_features(quickjs_jni PRIVATE c_std_11)
 target_compile_definitions(quickjs_jni PRIVATE _GNU_SOURCE)
-target_include_directories(quickjs_jni PRIVATE "${QUICKJS_ROOT}")
+target_include_directories(quickjs_jni PRIVATE "${QUICKJS_ROOT}" "${CMAKE_CURRENT_LIST_DIR}/src/main/c")
 
 if(NOT ANDROID)
     set(_jni_include_dirs)

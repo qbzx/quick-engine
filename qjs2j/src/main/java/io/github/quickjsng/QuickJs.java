@@ -145,6 +145,50 @@ public final class QuickJs implements AutoCloseable {
         }
     }
 
+    public void drainJobs() {
+        synchronized (lock) {
+            nativeDrainJobs(requireHandle());
+        }
+    }
+
+    public void runEventLoop(long maxWaitMillis) {
+        if (maxWaitMillis < 0) {
+            throw new IllegalArgumentException("maxWaitMillis must be >= 0");
+        }
+        synchronized (lock) {
+            nativeRunEventLoop(requireHandle(), maxWaitMillis);
+        }
+    }
+
+    public String awaitPromise(String source, long timeoutMillis) {
+        Objects.requireNonNull(source, "source");
+        if (timeoutMillis < 0) {
+            throw new IllegalArgumentException("timeoutMillis must be >= 0");
+        }
+        synchronized (lock) {
+            return nativeAwaitPromise(requireHandle(), source, timeoutMillis);
+        }
+    }
+
+    public String evalAsync(String source) {
+        return evalAsync(source, "<eval>", 0);
+    }
+
+    public String evalAsync(String source, String filename) {
+        return evalAsync(source, filename, 0);
+    }
+
+    public String evalAsync(String source, String filename, long timeoutMillis) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(filename, "filename");
+        if (timeoutMillis < 0) {
+            throw new IllegalArgumentException("timeoutMillis must be >= 0");
+        }
+        synchronized (lock) {
+            return nativeEvalAsync(requireHandle(), source, filename, timeoutMillis);
+        }
+    }
+
     @Override
     public void close() {
         synchronized (lock) {
@@ -193,4 +237,13 @@ public final class QuickJs implements AutoCloseable {
             long handle, String source, String filename, boolean module);
 
     private static native void nativeLoad(long handle, byte[] bytecode);
+
+    private static native int nativeDrainJobs(long handle);
+
+    private static native int nativeRunEventLoop(long handle, long maxWaitMillis);
+
+    private static native String nativeAwaitPromise(long handle, String source, long timeoutMillis);
+
+    private static native String nativeEvalAsync(
+            long handle, String source, String filename, long timeoutMillis);
 }
