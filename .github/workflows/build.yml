@@ -18,8 +18,8 @@ jobs:
           - os: macos-latest
             arch: macos-arm64
             lib_name: libquickjs_jni.dylib
-          - os: macos-13
-            arch: macos-x86_64
+          - os: macos-15-intel
+            arch: x86_64
             lib_name: libquickjs_jni.dylib
 
     runs-on: ${{ matrix.os }}
