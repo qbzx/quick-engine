@@ -1,0 +1,81 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: linux-x86_64
+            lib_name: libquickjs_jni.so
+          - os: macos-latest
+            arch: macos-arm64
+            lib_name: libquickjs_jni.dylib
+          - os: macos-13
+            arch: macos-x86_64
+            lib_name: libquickjs_jni.dylib
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build native library
+        run: |
+          cmake -S qjs2j -B qjs2j/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build qjs2j/build --config Release
+
+      - name: Compile Java sources
+        run: |
+          mkdir -p qjs2j/build/classes
+          javac -d qjs2j/build/classes \
+            qjs2j/src/main/java/io/github/quickjsng/*.java
+
+      - name: Package JAR
+        run: |
+          mkdir -p qjs2j/build/jar/native/${{ matrix.arch }}
+          cp qjs2j/build/${{ matrix.lib_name }} qjs2j/build/jar/native/${{ matrix.arch }}/
+          cp -r qjs2j/build/classes/* qjs2j/build/jar/
+          cd qjs2j/build/jar
+          jar cf ../../../qjs2j-${{ matrix.arch }}.jar .
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: qjs2j-${{ matrix.arch }}
+          path: qjs2j-${{ matrix.arch }}.jar
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.jar
+          generate_release_notes: true

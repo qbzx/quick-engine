@@ -5,7 +5,7 @@ import java.util.function.Consumer;
 
 public final class QuickJs implements AutoCloseable {
     static {
-        System.loadLibrary("quickjs_jni");
+        NativeLoader.load();
     }
 
     private final Object lock = new Object();
